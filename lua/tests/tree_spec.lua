@@ -39,8 +39,23 @@ describe("tree projection", function()
 
     assert.is_true(tree:expand "/project/src")
     assert.is_true(tree:expand "/project/src/util")
-    assert.are.same("/project/src", tree:collapse "/project/src/main.lua")
-    assert.are.same({ "/project/src", "/project/tests", "/project/README.md" }, paths(tree:project ""))
+    assert.is_nil(tree:collapse "/project/src/main.lua")
+    assert.are.same({
+      "/project/src",
+      "/project/src/util",
+      "/project/src/util/parser.lua",
+      "/project/src/main.lua",
+      "/project/tests",
+      "/project/README.md",
+    }, paths(tree:project ""))
+
+    local collapsed = tree:collapse "/project/src"
+    assert.are.same("/project/src", collapsed)
+    assert.are.same({
+      "/project/src",
+      "/project/tests",
+      "/project/README.md",
+    }, paths(tree:project ""))
 
     assert.is_true(tree:expand "/project/src")
     assert.are.same({
@@ -59,7 +74,35 @@ describe("tree projection", function()
     assert.are.same({ "/project/src", "/project/src/main.lua" }, paths(tree:project "main"))
   end)
 
+  it("identifies matching rows separately from their tree context", function()
+    local tree = Tree.new(root, entries, { grouped = true })
+
+    local projected, match_indices = tree:project "parser"
+
+    assert.are.same({
+      "/project/src",
+      "/project/src/util",
+      "/project/src/util/parser.lua",
+      "/project/tests",
+      "/project/tests/parser_spec.lua",
+    }, paths(projected))
+    assert.are.same({ 3, 5 }, match_indices)
+  end)
+
   it("shows ancestors and the full subtree for a matching folder", function()
+    local tree = Tree.new(root, entries, { grouped = true })
+
+    local projected, match_indices = tree:project "util"
+
+    assert.are.same({
+      "/project/src",
+      "/project/src/util",
+      "/project/src/util/parser.lua",
+    }, paths(projected))
+    assert.are.same({ 2 }, match_indices)
+  end)
+
+  it("collapses and reopens a folder within the current search", function()
     local tree = Tree.new(root, entries, { grouped = true })
 
     assert.are.same({
@@ -67,6 +110,21 @@ describe("tree projection", function()
       "/project/src/util",
       "/project/src/util/parser.lua",
     }, paths(tree:project "util"))
+
+    local search_collapsed = tree:collapse "/project/src"
+    assert.are.same("/project/src", search_collapsed)
+    assert.are.same({ "/project/src" }, paths(tree:project "util"))
+
+    assert.is_true(tree:expand "/project/src")
+    assert.are.same({
+      "/project/src",
+      "/project/src/util",
+      "/project/src/util/parser.lua",
+    }, paths(tree:project "util"))
+
+    tree:collapse "/project/src"
+    assert.are.same({ "/project/src", "/project/src/main.lua" }, paths(tree:project "main"))
+    assert.are.same({ "/project/src", "/project/tests", "/project/README.md" }, paths(tree:project ""))
   end)
 
   it("deduplicates overlapping search projections", function()

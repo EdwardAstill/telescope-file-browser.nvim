@@ -17,14 +17,13 @@ _TelescopeFileBrowserConfig = {
   tree_collapsed = "",
   tree_mappings = {
     ["i"] = {
-      ["<Esc>"] = fb_actions.normal_mode,
-    },
-    ["n"] = {
-      ["i"] = telescope_actions.move_selection_previous,
-      ["k"] = telescope_actions.move_selection_next,
-      ["j"] = fb_actions.collapse,
-      ["l"] = fb_actions.expand,
-      ["/"] = fb_actions.enter_search,
+      ["<Up>"] = telescope_actions.move_selection_previous,
+      ["<Down>"] = telescope_actions.move_selection_next,
+      ["<C-Up>"] = fb_actions.previous_match,
+      ["<C-Down>"] = fb_actions.next_match,
+      ["<Left>"] = fb_actions.collapse,
+      ["<Right>"] = fb_actions.expand,
+      ["<Esc>"] = telescope_actions.close,
     },
   },
   mappings = {
@@ -97,12 +96,26 @@ _TelescopeFileBrowserConfig = {
 
     local finder = action_state.get_current_picker(prompt_bufnr).finder
     if finder.tree then
-      for mode, mappings in pairs(config.values.tree_mappings) do
-        for key, action in pairs(mappings) do
-          map(mode, key, action)
+      local user_mappings = config.values._user_mappings or {}
+      local user_mapping_keys = {}
+      for mode, mappings in pairs(user_mappings) do
+        mode = mode:lower()
+        user_mapping_keys[mode] = user_mapping_keys[mode] or {}
+        for key in pairs(mappings) do
+          key = vim.api.nvim_replace_termcodes(key, true, true, true)
+          user_mapping_keys[mode][key] = true
         end
       end
-      for mode, mappings in pairs(config.values._user_mappings or {}) do
+      for mode, mappings in pairs(config.values.tree_mappings) do
+        for key, action in pairs(mappings) do
+          local mapped = user_mapping_keys[mode:lower()]
+          local normalized_key = vim.api.nvim_replace_termcodes(key, true, true, true)
+          if not mapped or not mapped[normalized_key] then
+            map(mode, key, action)
+          end
+        end
+      end
+      for mode, mappings in pairs(user_mappings) do
         for key, action in pairs(mappings) do
           map(mode, key, action)
         end

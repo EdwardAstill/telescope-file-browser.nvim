@@ -33,7 +33,6 @@ describe("tree picker", function()
 
   it("keeps a fixed root and exposes tree controls", function()
     local telescope = require "telescope"
-    local custom_expand_called = false
     telescope.setup {
       extensions = {
         file_browser = {
@@ -43,13 +42,7 @@ describe("tree picker", function()
           use_fd = false,
           git_status = false,
           display_stat = false,
-          mappings = {
-            n = {
-              l = function()
-                custom_expand_called = true
-              end,
-            },
-          },
+          mappings = {},
         },
       },
     }
@@ -70,7 +63,7 @@ describe("tree picker", function()
     end, 10))
 
     local picker = action_state.get_current_picker(prompt_bufnr)
-    assert.are.same("normal", picker.initial_mode)
+    assert.are.same("insert", picker.initial_mode)
     assert.is_true(action_state.get_selected_entry().is_dir)
 
     action_set.select(prompt_bufnr, "default")
@@ -81,38 +74,45 @@ describe("tree picker", function()
     local fb_actions = telescope.extensions.file_browser.actions
     assert.is_not_nil(fb_actions.expand)
     assert.is_not_nil(fb_actions.collapse)
-    assert.is_not_nil(fb_actions.enter_search)
-    assert.is_not_nil(fb_actions.normal_mode)
 
-    local normal_maps = vim.api.nvim_buf_get_keymap(prompt_bufnr, "n")
+    local insert_maps = vim.api.nvim_buf_get_keymap(prompt_bufnr, "i")
     local mapped = {}
-    for _, mapping in ipairs(normal_maps) do
+    for _, mapping in ipairs(insert_maps) do
       mapped[mapping.lhs] = mapping
     end
-    assert.is_not_nil(mapped.i)
-    assert.is_not_nil(mapped.k)
-    assert.is_not_nil(mapped.j)
-    assert.is_not_nil(mapped.l)
-    assert.is_not_nil(mapped["/"])
-
-    mapped.l.callback()
-    assert.is_true(custom_expand_called)
+    assert.is_not_nil(mapped["<Up>"])
+    assert.is_not_nil(mapped["<Down>"])
+    assert.is_not_nil(mapped["<Left>"])
+    assert.is_not_nil(mapped["<Right>"])
+    assert.is_not_nil(mapped["<CR>"])
+    assert.is_not_nil(mapped["<Esc>"])
+    assert.is_nil(mapped["/"])
+    assert.is_nil(mapped["<BS>"])
 
     local src = Path:new(root, "src"):absolute()
     local child = Path:new(root, "src", "child.lua"):absolute()
-    fb_actions.expand(prompt_bufnr)
+    mapped["<Right>"].callback(prompt_bufnr)
     assert.is_true(vim.wait(1000, function()
       return #picker.finder.results == 3
     end, 10))
     assert.is_true(picker.finder.tree_state.expanded[src])
     assert.are.same(src, action_state.get_selected_entry().path)
 
-    mapped.k.callback(prompt_bufnr)
+    picker:reset_prompt "child"
+    mapped["<Left>"].callback(prompt_bufnr)
+    picker:reset_prompt ""
+    assert.is_true(vim.wait(1000, function()
+      return #picker.finder.results == 3 and picker.finder.tree_state.expanded[src] == true
+    end, 10))
+
+    mapped["<Down>"].callback(prompt_bufnr)
     assert.are.same(child, action_state.get_selected_entry().path)
-    mapped.i.callback(prompt_bufnr)
+    mapped["<Left>"].callback(prompt_bufnr)
+    assert.is_true(picker.finder.tree_state.expanded[src])
+    assert.are.same(child, action_state.get_selected_entry().path)
+    mapped["<Up>"].callback(prompt_bufnr)
     assert.are.same(src, action_state.get_selected_entry().path)
-    mapped.k.callback(prompt_bufnr)
-    mapped.j.callback(prompt_bufnr)
+    mapped["<Left>"].callback(prompt_bufnr)
     assert.is_true(vim.wait(1000, function()
       return #picker.finder.results == 2
     end, 10))
@@ -123,23 +123,262 @@ describe("tree picker", function()
     assert.is_true(vim.wait(1000, function()
       return #picker.finder.results == 0
     end, 10))
-    action_set.select(prompt_bufnr, "default")
+    mapped["<CR>"].callback(prompt_bufnr)
     assert.is_false(missing:exists())
 
     picker:reset_prompt ""
     assert.is_true(vim.wait(1000, function()
       return #picker.finder.results == 2
     end, 10))
-    fb_actions.expand(prompt_bufnr)
+    mapped["<Right>"].callback(prompt_bufnr)
     assert.is_true(vim.wait(1000, function()
       return #picker.finder.results == 3
     end, 10))
-    mapped.k.callback(prompt_bufnr)
+    mapped["<Down>"].callback(prompt_bufnr)
     assert.are.same(child, action_state.get_selected_entry().path)
     action_set.select(prompt_bufnr, "default")
     assert.is_true(vim.wait(1000, function()
       return not vim.api.nvim_buf_is_valid(prompt_bufnr)
     end, 10))
     assert.are.same(child, vim.api.nvim_buf_get_name(0))
+  end)
+
+  it("updates search live while arrow keys navigate the tree", function()
+    local telescope = require "telescope"
+    telescope.setup {
+      extensions = {
+        file_browser = {
+          tree = true,
+          grouped = true,
+          use_fd = false,
+          git_status = false,
+          display_stat = false,
+          mappings = {},
+        },
+      },
+    }
+    telescope.load_extension "file_browser"
+    telescope.extensions.file_browser.file_browser {
+      path = root,
+      cwd = root,
+      previewer = false,
+    }
+
+    assert.is_true(vim.wait(1000, function()
+      prompt_bufnr = find_prompt()
+      if not prompt_bufnr then
+        return false
+      end
+      local picker = action_state.get_current_picker(prompt_bufnr)
+      return picker and picker.finder.tree_state and #picker.finder.results > 0
+    end, 10))
+
+    local picker = action_state.get_current_picker(prompt_bufnr)
+    for _, search in ipairs {
+      { query = "r", count = 3 },
+      { query = "re", count = 1 },
+      { query = "rea", count = 1 },
+      { query = "read", count = 1 },
+    } do
+      picker:reset_prompt(search.query)
+      assert.is_true(vim.wait(1000, function()
+        return picker:_get_prompt() == search.query
+          and #picker.finder.results == search.count
+          and picker.manager:num_results() == search.count
+      end, 10))
+    end
+
+    local child = Path:new(root, "src", "child.lua"):absolute()
+    picker:reset_prompt "child"
+    assert.is_true(vim.wait(1000, function()
+      local second = picker.manager:get_entry(2)
+      local selected = action_state.get_selected_entry()
+      return #picker.finder.results == 2 and second and second.path == child and selected and selected.path == child
+    end, 10))
+    assert.are.same(child, action_state.get_selected_entry().path)
+
+    local function mappings(mode)
+      local mapped = {}
+      for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(prompt_bufnr, mode)) do
+        mapped[mapping.lhs] = mapping
+      end
+      return mapped
+    end
+
+    local insert_mapped = mappings "i"
+    assert.is_not_nil(insert_mapped["<Up>"])
+    assert.is_not_nil(insert_mapped["<Down>"])
+    assert.is_not_nil(insert_mapped["<C-Up>"])
+    assert.is_not_nil(insert_mapped["<C-Down>"])
+    assert.is_not_nil(insert_mapped["<Left>"])
+    assert.is_not_nil(insert_mapped["<Right>"])
+    assert.is_not_nil(insert_mapped["<CR>"])
+    assert.is_nil(insert_mapped["/"])
+    assert.is_nil(insert_mapped["<BS>"])
+
+    insert_mapped["<Up>"].callback(prompt_bufnr)
+    assert.are.same(Path:new(root, "src"):absolute(), action_state.get_selected_entry().path)
+    insert_mapped["<Left>"].callback(prompt_bufnr)
+    assert.is_true(vim.wait(1000, function()
+      return #picker.finder.results == 1 and picker.manager:num_results() == 1
+    end, 10))
+    assert.are.same("child", picker:_get_prompt())
+
+    insert_mapped["<Right>"].callback(prompt_bufnr)
+    assert.is_true(vim.wait(1000, function()
+      return #picker.finder.results == 2 and picker.manager:num_results() == 2
+    end, 10))
+    assert.are.same(Path:new(root, "src"):absolute(), action_state.get_selected_entry().path)
+    insert_mapped["<Down>"].callback(prompt_bufnr)
+    assert.are.same("child", picker:_get_prompt())
+    assert.are.same(child, action_state.get_selected_entry().path)
+
+    insert_mapped["<CR>"].callback(prompt_bufnr)
+    assert.is_true(vim.wait(1000, function()
+      return not vim.api.nvim_buf_is_valid(prompt_bufnr)
+    end, 10))
+    assert.are.same(child, vim.api.nvim_buf_get_name(0))
+  end)
+
+  it("wraps Control-arrow navigation across matching rows", function()
+    vim.fn.mkdir(Path:new(root, "tests"):absolute(), "p")
+    local first_match = Path:new(root, "src", "child.lua"):absolute()
+    local second_match = Path:new(root, "tests", "child_spec.lua"):absolute()
+    vim.fn.writefile({ "return true" }, second_match)
+
+    local telescope = require "telescope"
+    telescope.setup {
+      extensions = {
+        file_browser = {
+          tree = true,
+          grouped = true,
+          use_fd = false,
+          git_status = false,
+          display_stat = false,
+          mappings = {},
+        },
+      },
+    }
+    telescope.load_extension "file_browser"
+    telescope.extensions.file_browser.file_browser {
+      path = root,
+      cwd = root,
+      previewer = false,
+    }
+
+    assert.is_true(vim.wait(1000, function()
+      prompt_bufnr = find_prompt()
+      if not prompt_bufnr then
+        return false
+      end
+      local picker = action_state.get_current_picker(prompt_bufnr)
+      return picker and picker.finder.tree_state and #picker.finder.results > 0
+    end, 10))
+
+    local picker = action_state.get_current_picker(prompt_bufnr)
+    picker:reset_prompt "child"
+    assert.is_true(vim.wait(1000, function()
+      local selected = action_state.get_selected_entry()
+      return #picker.finder.results == 4 and selected and selected.path == first_match
+    end, 10))
+
+    local mapped = {}
+    for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(prompt_bufnr, "i")) do
+      mapped[mapping.lhs] = mapping
+    end
+
+    mapped["<C-Down>"].callback(prompt_bufnr)
+    assert.are.same(second_match, action_state.get_selected_entry().path)
+    mapped["<C-Down>"].callback(prompt_bufnr)
+    assert.are.same(first_match, action_state.get_selected_entry().path)
+    mapped["<C-Up>"].callback(prompt_bufnr)
+    assert.are.same(second_match, action_state.get_selected_entry().path)
+  end)
+
+  it("allows disabling tree mappings with equivalent key names", function()
+    local telescope = require "telescope"
+    telescope.setup {
+      extensions = {
+        file_browser = {
+          tree = true,
+          use_fd = false,
+          git_status = false,
+          display_stat = false,
+          mappings = {
+            i = {
+              ["<cr>"] = false,
+              ["<esc>"] = false,
+              ["<up>"] = false,
+              ["<down>"] = false,
+              ["<c-up>"] = false,
+              ["<c-down>"] = false,
+              ["<left>"] = false,
+              ["<right>"] = false,
+            },
+          },
+        },
+      },
+    }
+    telescope.load_extension "file_browser"
+    telescope.extensions.file_browser.file_browser {
+      path = root,
+      cwd = root,
+      previewer = false,
+    }
+
+    assert.is_true(vim.wait(1000, function()
+      prompt_bufnr = find_prompt()
+      return prompt_bufnr ~= nil
+    end, 10))
+
+    local insert_mapped = {}
+    for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(prompt_bufnr, "i")) do
+      insert_mapped[mapping.lhs] = mapping
+    end
+    assert.is_nil(insert_mapped["<CR>"])
+    assert.is_nil(insert_mapped["<Esc>"])
+    assert.is_nil(insert_mapped["<Up>"])
+    assert.is_nil(insert_mapped["<Down>"])
+    assert.is_nil(insert_mapped["<C-Up>"])
+    assert.is_nil(insert_mapped["<C-Down>"])
+    assert.is_nil(insert_mapped["<Left>"])
+    assert.is_nil(insert_mapped["<Right>"])
+  end)
+
+  it("closes the picker with Escape from search input", function()
+    local telescope = require "telescope"
+    telescope.setup {
+      extensions = {
+        file_browser = {
+          tree = true,
+          use_fd = false,
+          git_status = false,
+          display_stat = false,
+          mappings = {},
+        },
+      },
+    }
+    telescope.load_extension "file_browser"
+    telescope.extensions.file_browser.file_browser {
+      path = root,
+      cwd = root,
+      previewer = false,
+    }
+
+    assert.is_true(vim.wait(1000, function()
+      prompt_bufnr = find_prompt()
+      return prompt_bufnr ~= nil
+    end, 10))
+
+    local insert_mapped = {}
+    for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(prompt_bufnr, "i")) do
+      insert_mapped[mapping.lhs] = mapping
+    end
+    assert.is_not_nil(insert_mapped["<Esc>"])
+    insert_mapped["<Esc>"].callback(prompt_bufnr)
+
+    assert.is_true(vim.wait(1000, function()
+      return not vim.api.nvim_buf_is_valid(prompt_bufnr)
+    end, 10))
   end)
 end)

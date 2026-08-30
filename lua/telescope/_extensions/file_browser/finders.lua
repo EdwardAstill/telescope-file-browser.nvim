@@ -179,10 +179,11 @@ fb_finders.browse_tree = function(opts)
   return setmetatable({
     tree_state = tree_state,
     results = {},
+    match_indices = {},
     close = function() end,
   }, {
     __call = function(self, prompt, process_result, process_complete)
-      self.results = tree_state:project(prompt)
+      self.results, self.match_indices = tree_state:project(prompt)
       for index, entry in ipairs(self.results) do
         entry.index = index
         if process_result(entry) then

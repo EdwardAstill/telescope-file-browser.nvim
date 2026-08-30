@@ -19,18 +19,17 @@ Existing `<leader>f` and Yazi mappings remain unchanged.
 - Results use depth-first tree order with indentation and distinct expanded and
   collapsed directory markers. They are never rearranged into a flat fuzzy
   ranking.
-- The picker starts in normal mode.
-- Default normal-mode controls are configurable through Telescope's extension
-  mappings:
-  - `i`: move to the previous visible row.
-  - `k`: move to the next visible row.
-  - `j`: collapse the selected directory; when the selected row is a file or an
-    already-collapsed directory, select and collapse its nearest visible parent.
-  - `l`: expand the selected directory.
-  - `<CR>`: open a file. It does nothing on a directory.
-  - `/`: enter insert mode to edit the search prompt.
-- `<Esc>` in insert mode returns to normal tree navigation without closing the
-  picker. Normal-mode `q` retains Telescope's close behavior.
+- The picker keeps the search prompt active (implemented with Neovim's insert
+  mode), and results update after every typed character.
+- Default controls are configurable through Telescope's extension mappings:
+  - `<Up>`: move to the previous visible row without leaving the prompt.
+  - `<Down>`: move to the next visible row without leaving the prompt.
+  - `<Left>`: collapse the selected directory; do nothing on a file.
+  - `<Right>`: expand the selected directory; do nothing on a file.
+  - `<CR>`: open a file. It does nothing on a directory by default.
+  - `<Esc>`: close the picker.
+- Backspace and `/` edit the prompt normally. In particular, Backspace on an
+  empty prompt never changes the browser root.
 - Clearing the prompt restores the exact manual expanded/collapsed state that
   existed before searching.
 
@@ -102,7 +101,7 @@ segments. Non-tree display remains unchanged.
 
 ### Actions and mappings
 
-Add exported `expand`, `collapse`, `enter_search`, and `normal_mode` actions.
+Add exported `expand` and `collapse` actions.
 Expand and collapse mutate only the tree state, preserve the logical selection,
 and refresh the current projection. Existing file actions continue to use the
 selected entry; create/copy/move targets resolve to the selected directory or a
@@ -135,7 +134,9 @@ to replace any default control.
 Update the existing Telescope plugin specification to add the local fork as a
 dependency using `dir = vim.fn.expand("~/projects/telescope-file-browser.nvim")`,
 configure tree mode and its default controls, and load the `file_browser`
-extension after Telescope setup.
+extension after Telescope setup. Override tree `<CR>` so files retain
+Telescope's default open behavior, while directories close the picker and open
+embedded Yazi at the selected path.
 
 Add `<leader>t` to the central keymap file as `Telescope file_browser`, with a
 description identifying it as the project tree browser. Update the Neovim docs,
@@ -146,7 +147,7 @@ in-progress dotfiles changes.
 
 Use test-driven development for executable behavior.
 
-- Unit-test initial collapsed projection, nested expansion, parent collapse,
+- Unit-test initial collapsed projection, nested expansion, selected-directory collapse,
   deterministic order, and empty trees.
 - Unit-test file matches including exactly their ancestor chain.
 - Unit-test folder matches including ancestors and the complete recursive
@@ -159,4 +160,3 @@ Use test-driven development for executable behavior.
   options/actions are available.
 - Run the focused dotfiles Neovim shortcut checks, then `check-dotfiles` as the
   repository handoff check.
-

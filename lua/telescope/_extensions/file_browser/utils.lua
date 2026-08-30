@@ -218,7 +218,7 @@ fb_utils.selection_callback = function(current_picker, absolute_path)
     local finder = picker.finder
     local dir = finder.files and finder.path or finder.cwd
     local selection_index = _get_selection_index(absolute_path, dir, finder.results, finder.tree)
-    if selection_index and selection_index ~= 1 then
+    if selection_index then
       picker:set_selection(picker:get_row(selection_index))
     end
     table.remove(picker._completion_callbacks)

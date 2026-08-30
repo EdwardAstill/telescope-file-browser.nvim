@@ -31,6 +31,8 @@ end
 ---@field children table<string, table[]>
 ---@field parents table<string, string>
 ---@field expanded table<string, boolean>
+---@field search_prompt string
+---@field search_collapsed table<string, boolean>
 ---@field grouped boolean
 
 ---@param root string
@@ -47,6 +49,8 @@ function Tree.new(root, entries, opts)
     children = { [root] = {} },
     parents = {},
     expanded = {},
+    search_prompt = "",
+    search_collapsed = {},
     grouped = vim.F.if_nil(opts.grouped, false),
   }, Tree)
 
@@ -78,12 +82,22 @@ function Tree:parent(path)
 end
 
 ---@param path string
+---@param prompt string?
 ---@return boolean
-function Tree:expand(path)
+function Tree:expand(path, prompt)
+  if prompt ~= nil then
+    self:sync_prompt(prompt)
+  end
   path = normalize(path)
   local entry = self.entries[path]
   if not entry or not entry.is_dir or #(self.children[path] or {}) == 0 then
     return false
+  end
+
+  if self.search_prompt ~= "" then
+    local collapsed = self.search_collapsed[path] == true
+    self.search_collapsed[path] = nil
+    return collapsed
   end
 
   self.expanded[path] = true
@@ -91,22 +105,30 @@ function Tree:expand(path)
 end
 
 ---@param path string
+---@param prompt string?
 ---@return string?
-function Tree:collapse(path)
+function Tree:collapse(path, prompt)
+  if prompt ~= nil then
+    self:sync_prompt(prompt)
+  end
   path = normalize(path)
   local entry = self.entries[path]
-  if entry and entry.is_dir and self.expanded[path] then
-    self.expanded[path] = nil
+  if not entry or not entry.is_dir then
+    return
+  end
+
+  if self.search_prompt ~= "" then
+    if #(self.children[path] or {}) == 0 or self.search_collapsed[path] then
+      return
+    end
+    self.search_collapsed[path] = true
     return path
   end
 
-  local parent = self.parents[path]
-  if not parent or parent == self.root then
-    return nil
+  if self.expanded[path] then
+    self.expanded[path] = nil
+    return path
   end
-
-  self.expanded[parent] = nil
-  return parent
 end
 
 local function set_metadata(entry, depth, expanded, has_children)
@@ -115,11 +137,23 @@ local function set_metadata(entry, depth, expanded, has_children)
   entry._tree_has_children = has_children
 end
 
+---@param prompt string?
+function Tree:sync_prompt(prompt)
+  prompt = prompt or ""
+  if prompt ~= self.search_prompt then
+    self.search_prompt = prompt
+    self.search_collapsed = {}
+  end
+end
+
 ---@param prompt string
 ---@return table[]
+---@return integer[] match_indices
 function Tree:project(prompt)
   prompt = prompt or ""
   local results = {}
+  local match_indices = {}
+  self:sync_prompt(prompt)
 
   if prompt == "" then
     local function add_expanded(parent, depth)
@@ -135,10 +169,12 @@ function Tree:project(prompt)
     end
 
     add_expanded(self.root, 0)
-    return results
+    return results, match_indices
   end
 
   local included = {}
+  local path_matches = {}
+  local name_matches = {}
 
   local function include_ancestors(path)
     while path and path ~= self.root do
@@ -156,12 +192,17 @@ function Tree:project(prompt)
 
   for path, entry in pairs(self.entries) do
     if fzy.has_match(prompt, entry.ordinal or path) then
+      path_matches[path] = true
+      if fzy.has_match(prompt, vim.fs.basename(path)) then
+        name_matches[path] = true
+      end
       include_ancestors(path)
       if entry.is_dir then
         include_subtree(path)
       end
     end
   end
+  local direct_matches = next(name_matches) and name_matches or path_matches
 
   local function add_search_results(parent, depth)
     for _, entry in ipairs(self.children[parent] or {}) do
@@ -173,14 +214,13 @@ function Tree:project(prompt)
             break
           end
         end
-        set_metadata(
-          entry,
-          depth,
-          entry.is_dir and has_visible_children,
-          entry.is_dir and #(self.children[entry.path] or {}) > 0
-        )
+        local expanded = entry.is_dir and has_visible_children and not self.search_collapsed[entry.path]
+        set_metadata(entry, depth, expanded, entry.is_dir and #(self.children[entry.path] or {}) > 0)
         table.insert(results, entry)
-        if has_visible_children then
+        if direct_matches[entry.path] then
+          table.insert(match_indices, #results)
+        end
+        if expanded then
           add_search_results(entry.path, depth + 1)
         end
       end
@@ -188,7 +228,7 @@ function Tree:project(prompt)
   end
 
   add_search_results(self.root, 0)
-  return results
+  return results, match_indices
 end
 
 return Tree

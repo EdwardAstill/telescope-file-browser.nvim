@@ -158,7 +158,7 @@ fb_picker.file_browser = function(opts)
   opts.tree_indent = vim.F.if_nil(opts.tree_indent, "  ")
   opts.tree_expanded = vim.F.if_nil(opts.tree_expanded, "")
   opts.tree_collapsed = vim.F.if_nil(opts.tree_collapsed, "")
-  opts.initial_mode = opts.tree and vim.F.if_nil(opts.initial_mode, "normal") or opts.initial_mode
+  opts.initial_mode = opts.tree and vim.F.if_nil(opts.initial_mode, "insert") or opts.initial_mode
   opts.sorting_strategy = opts.tree and "ascending" or opts.sorting_strategy
   opts.quiet = vim.F.if_nil(opts.quiet, false)
   opts.hide_parent_dir = vim.F.if_nil(opts.hide_parent_dir, false)
@@ -177,6 +177,22 @@ fb_picker.file_browser = function(opts)
 
   ---@cast opts telescope-file-browser.FinderOpts
   opts.finder = fb_finder.finder(opts)
+  if opts.tree then
+    opts._completion_callbacks = vim.F.if_nil(opts._completion_callbacks, {})
+    table.insert(opts._completion_callbacks, function(current_picker)
+      if current_picker:_get_prompt() == "" then
+        return
+      end
+
+      local finder = current_picker.finder
+      local first_match = finder.match_indices and finder.match_indices[1]
+      local entry = first_match and finder.results[first_match]
+      local result_index = entry and current_picker.manager:find_entry(entry)
+      if result_index then
+        current_picker:set_selection(current_picker:get_row(result_index))
+      end
+    end)
+  end
   -- find index of current buffer in the results
   if select_buffer then
     local buf_name = vim.api.nvim_buf_get_name(0)

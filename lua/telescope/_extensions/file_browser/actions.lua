@@ -871,43 +871,93 @@ local function refresh_tree(prompt_bufnr, selection)
   current_picker:refresh(nil, { reset_prompt = false, multi = current_picker._multi })
 end
 
+local function move_to_match(prompt_bufnr, direction)
+  local current_picker = action_state.get_current_picker(prompt_bufnr)
+  if current_picker:_get_prompt() == "" then
+    return
+  end
+
+  local finder = current_picker.finder
+  local matches = {}
+  for _, finder_index in ipairs(finder.match_indices or {}) do
+    local entry = finder.results[finder_index]
+    local result_index = entry and current_picker.manager:find_entry(entry)
+    if result_index then
+      table.insert(matches, result_index)
+    end
+  end
+  if #matches == 0 then
+    return
+  end
+
+  table.sort(matches)
+  local selected_index = current_picker.manager:find_entry(action_state.get_selected_entry())
+  local target = direction > 0 and matches[1] or matches[#matches]
+  if selected_index then
+    if direction > 0 then
+      for _, index in ipairs(matches) do
+        if index > selected_index then
+          target = index
+          break
+        end
+      end
+    else
+      for index = #matches, 1, -1 do
+        if matches[index] < selected_index then
+          target = matches[index]
+          break
+        end
+      end
+    end
+  end
+
+  current_picker:set_selection(current_picker:get_row(target))
+end
+
+--- Move to the next visible row that directly matches the tree search.
+---@param prompt_bufnr integer
+fb_actions.next_match = function(prompt_bufnr)
+  move_to_match(prompt_bufnr, 1)
+end
+
+--- Move to the previous visible row that directly matches the tree search.
+---@param prompt_bufnr integer
+fb_actions.previous_match = function(prompt_bufnr)
+  move_to_match(prompt_bufnr, -1)
+end
+
 --- Expand the selected directory without changing the tree root.
 ---@param prompt_bufnr integer
 fb_actions.expand = function(prompt_bufnr)
   local current_picker = action_state.get_current_picker(prompt_bufnr)
-  if current_picker:_get_prompt() ~= "" then
-    return
-  end
-
   local finder = current_picker.finder
   local entry = action_state.get_selected_entry()
-  if finder.tree_state and entry and finder.tree_state:expand(entry.path) then
+  if finder.tree_state and entry and finder.tree_state:expand(entry.path, current_picker:_get_prompt()) then
     refresh_tree(prompt_bufnr, entry.path)
   end
 end
 
---- Collapse the selected directory, or its nearest visible parent.
+--- Collapse the selected directory.
 ---@param prompt_bufnr integer
 fb_actions.collapse = function(prompt_bufnr)
   local current_picker = action_state.get_current_picker(prompt_bufnr)
-  if current_picker:_get_prompt() ~= "" then
-    return
-  end
-
   local finder = current_picker.finder
   local entry = action_state.get_selected_entry()
-  local selection = finder.tree_state and entry and finder.tree_state:collapse(entry.path) or nil
+  local selection = finder.tree_state
+    and entry
+    and finder.tree_state:collapse(entry.path, current_picker:_get_prompt())
+    or nil
   if selection then
     refresh_tree(prompt_bufnr, selection)
   end
 end
 
---- Enter insert mode to edit the tree search prompt.
+--- Compatibility action for custom mappings that explicitly enter insert mode.
 fb_actions.enter_search = function()
   vim.cmd.startinsert()
 end
 
---- Return from tree search input to normal-mode navigation.
+--- Compatibility action for custom mappings that explicitly leave insert mode.
 fb_actions.normal_mode = function()
   vim.cmd.stopinsert()
 end

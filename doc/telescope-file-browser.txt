@@ -103,12 +103,16 @@ The `file_browser` picker comes pre-configured with several keymaps:
 • `<C-s>/s`: Toggle all entries ignoring `./` and `../`
 • `<bs>/` : Goes to parent dir if prompt is empty, otherwise acts normally
 
-With `tree = true`, the picker starts in normal mode and keeps `path` as a
-fixed root. `i` and `k` move up and down, `j` collapses, `l` expands, `/`
-enters search input, and `<Esc>` returns to normal mode. `<CR>` opens files and
-does nothing on directories. Search results retain their hierarchy: matching
-files include their ancestors, and matching directories include their complete
-subtree.
+With `tree = true`, the picker keeps its search prompt active and keeps `path`
+as a fixed root. Search results update after every typed character. `<Up>` and
+`<Down>` move through visible rows, while `<Left>` and `<Right>` collapse and
+expand the selected directory. `<C-Up>` and `<C-Down>` move between directly
+matching rows and wrap at either end. The first direct match is selected after
+each search update. The horizontal arrows do nothing on files.
+`<CR>` opens files and does nothing on directories, and `<Esc>` closes the
+picker. Backspace and `/` edit the prompt normally and never navigate the
+filesystem. Search results retain their hierarchy: matching files include
+their ancestors, and matching directories include their complete subtree.
 
 The file browser picker can be configured with the following options:
 
@@ -444,6 +448,20 @@ fb_actions.path_separator({prompt_bufnr})
     Parameters: ~
       • {prompt_bufnr}  (`number`) The prompt bufnr
 
+                                  *telescope-file-browser.actions.next_match()*
+fb_actions.next_match({prompt_bufnr})
+    Move to the next visible row that directly matches the tree search.
+
+    Parameters: ~
+      • {prompt_bufnr}  (`integer`) The prompt bufnr
+
+                              *telescope-file-browser.actions.previous_match()*
+fb_actions.previous_match({prompt_bufnr})
+    Move to the previous visible row that directly matches the tree search.
+
+    Parameters: ~
+      • {prompt_bufnr}  (`integer`) The prompt bufnr
+
                                       *telescope-file-browser.actions.expand()*
 fb_actions.expand({prompt_bufnr})
     Expand the selected directory without changing the tree root.
@@ -453,18 +471,20 @@ fb_actions.expand({prompt_bufnr})
 
                                     *telescope-file-browser.actions.collapse()*
 fb_actions.collapse({prompt_bufnr})
-    Collapse the selected directory, or its nearest visible parent.
+    Collapse the selected directory.
 
     Parameters: ~
       • {prompt_bufnr}  (`integer`) The prompt bufnr
 
                                 *telescope-file-browser.actions.enter_search()*
 fb_actions.enter_search()
-    Enter insert mode to edit the tree search prompt.
+    Compatibility action for custom mappings that explicitly enter insert
+    mode. Default tree mappings do not use it.
 
                                  *telescope-file-browser.actions.normal_mode()*
 fb_actions.normal_mode()
-    Return from tree search input to normal-mode navigation.
+    Compatibility action for custom mappings that explicitly leave insert
+    mode. Default tree mappings do not use it.
 
                                    *telescope-file-browser.actions.open_dir()*
 fb_actions.open_dir({prompt_bufnr}, {_}, {dir})

@@ -52,6 +52,7 @@ local fb_actions = require "telescope._extensions.file_browser.actions"
 local fb_finders = require "telescope._extensions.file_browser.finders"
 local fb_picker = require "telescope._extensions.file_browser.picker"
 local fb_config = require "telescope._extensions.file_browser.config"
+local action_state = require "telescope.actions.state"
 
 ---@class telescope-file-browser.SetupOpts : telescope-file-browser.PickerOpts
 --- use telescope file browser when opening directory paths (default: `false`)
@@ -78,9 +79,15 @@ local file_browser = function(opts)
 
   if fb_config.values.mappings then
     defaults.attach_mappings = function(prompt_bufnr, map)
+      local finder = action_state.get_current_picker(prompt_bufnr).finder
       for mode, tbl in pairs(fb_config.values.mappings) do
         for key, action in pairs(tbl) do
-          map(mode, key, action)
+          local edits_tree_search = finder.tree
+            and mode:lower() == "i"
+            and (action == fb_actions.backspace or action == fb_actions.path_separator)
+          if not edits_tree_search then
+            map(mode, key, action)
+          end
         end
       end
       if fb_config.values.attach_mappings then
