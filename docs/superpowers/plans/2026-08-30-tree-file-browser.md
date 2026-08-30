@@ -370,7 +370,7 @@ git commit -m "docs: describe tree browser mode"
 - Produces command mapping: `<leader>t -> <cmd>Telescope file_browser<cr>`
 - Produces Telescope extension config: `tree = true`, `hidden = true`, `grouped = true`, fixed current working directory root.
 
-- [ ] **Step 1: Add the failing shortcut expectation**
+- [x] **Step 1: Add the failing shortcut expectation**
 
 Extend the existing real Neovim shortcut test using its established assertion helper:
 
@@ -378,13 +378,13 @@ Extend the existing real Neovim shortcut test using its established assertion he
 assert_map("n", "<leader>t", "<cmd>Telescope file_browser<cr>", "Project tree browser")
 ```
 
-- [ ] **Step 2: Run the focused dotfiles test and verify RED**
+- [x] **Step 2: Run the focused dotfiles test and verify RED**
 
 Run the exact command documented at the top of `tests/nvim-shortcuts.lua` or used by `check-dotfiles` for that test file.
 
 Expected: FAIL because `<leader>t` is not mapped.
 
-- [ ] **Step 3: Configure lazy.nvim and Telescope**
+- [x] **Step 3: Configure lazy.nvim and Telescope**
 
 Add this dependency to the existing Telescope spec without changing its current dependencies:
 
@@ -402,11 +402,11 @@ Add `extensions.file_browser = { tree = true, hidden = true, grouped = true, hid
 map("n", "<leader>t", "<cmd>Telescope file_browser<cr>", { desc = "Project tree browser" })
 ```
 
-- [ ] **Step 4: Update user-facing navigation docs**
+- [x] **Step 4: Update user-facing navigation docs**
 
 Add `Space+t` to the Telescope/navigation tables and document the tree-local `i/k/j/l`, `/`, `<Esc>`, and `<CR>` controls. Keep `Space+f`, `Space+e`, and Neo-tree documentation unchanged.
 
-- [ ] **Step 5: Run focused shortcut and headless load checks**
+- [x] **Step 5: Run focused shortcut and headless load checks**
 
 Run the focused shortcut test again.
 
@@ -418,7 +418,7 @@ nvim --headless "+lua local t=require('telescope'); assert(pcall(t.load_extensio
 
 Expected: shortcut test PASS and Neovim exits 0.
 
-- [ ] **Step 6: Run repository and final plugin verification**
+- [x] **Step 6: Run repository and final plugin verification**
 
 Run: `check-dotfiles`
 
@@ -428,6 +428,6 @@ Run in both repositories: `git diff --check`
 
 Expected: all checks PASS. Any pre-existing dotfiles failure must be reported with evidence and kept separate from this change.
 
-- [ ] **Step 7: Review the final diffs**
+- [x] **Step 7: Review the final diffs**
 
 Confirm the plugin branch contains only the design, plan, tree implementation, tests, and docs. Confirm the dotfiles diff contains only surgical additions to the five scoped files and preserves every pre-existing change.
