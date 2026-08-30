@@ -30,3 +30,40 @@ describe("get_ordinal_path", function()
     end
   end)
 end)
+
+describe("get_tree_display", function()
+  local opts = {
+    tree_indent = "  ",
+    tree_expanded = "v",
+    tree_collapsed = ">",
+  }
+
+  it("renders collapsed and expanded directories", function()
+    assert.are.same({ "> ", "src" }, {
+      me_utils.get_tree_display({
+        path = "/p/src",
+        is_dir = true,
+        _tree_depth = 0,
+        _tree_expanded = false,
+      }, opts),
+    })
+    assert.are.same({ "  v ", "util" }, {
+      me_utils.get_tree_display({
+        path = "/p/src/util",
+        is_dir = true,
+        _tree_depth = 1,
+        _tree_expanded = true,
+      }, opts),
+    })
+  end)
+
+  it("aligns files under directory markers", function()
+    assert.are.same({ "    ", "main.lua" }, {
+      me_utils.get_tree_display({
+        path = "/p/src/main.lua",
+        is_dir = false,
+        _tree_depth = 1,
+      }, opts),
+    })
+  end)
+end)

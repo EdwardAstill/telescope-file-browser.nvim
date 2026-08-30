@@ -50,6 +50,14 @@ local os_sep = Path.path.sep
 
 -- utility to get absolute path of target directory for create, copy, moving files/folders
 local get_target_dir = function(finder)
+  if finder.tree then
+    local entry = action_state.get_selected_entry()
+    if not entry then
+      return finder.path
+    end
+    return entry.is_dir and entry.value or entry.Path:parent():absolute()
+  end
+
   local entry_path
   if finder.files == false then
     local entry = action_state.get_selected_entry()
@@ -853,6 +861,55 @@ fb_actions.path_separator = function(prompt_bufnr)
   else
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(os_sep, true, false, true), "tn", false)
   end
+end
+
+local function refresh_tree(prompt_bufnr, selection)
+  local current_picker = action_state.get_current_picker(prompt_bufnr)
+  if selection then
+    fb_utils.selection_callback(current_picker, selection)
+  end
+  current_picker:refresh(nil, { reset_prompt = false, multi = current_picker._multi })
+end
+
+--- Expand the selected directory without changing the tree root.
+---@param prompt_bufnr integer
+fb_actions.expand = function(prompt_bufnr)
+  local current_picker = action_state.get_current_picker(prompt_bufnr)
+  if current_picker:_get_prompt() ~= "" then
+    return
+  end
+
+  local finder = current_picker.finder
+  local entry = action_state.get_selected_entry()
+  if finder.tree_state and entry and finder.tree_state:expand(entry.path) then
+    refresh_tree(prompt_bufnr, entry.path)
+  end
+end
+
+--- Collapse the selected directory, or its nearest visible parent.
+---@param prompt_bufnr integer
+fb_actions.collapse = function(prompt_bufnr)
+  local current_picker = action_state.get_current_picker(prompt_bufnr)
+  if current_picker:_get_prompt() ~= "" then
+    return
+  end
+
+  local finder = current_picker.finder
+  local entry = action_state.get_selected_entry()
+  local selection = finder.tree_state and entry and finder.tree_state:collapse(entry.path) or nil
+  if selection then
+    refresh_tree(prompt_bufnr, selection)
+  end
+end
+
+--- Enter insert mode to edit the tree search prompt.
+fb_actions.enter_search = function()
+  vim.cmd.startinsert()
+end
+
+--- Return from tree search input to normal-mode navigation.
+fb_actions.normal_mode = function()
+  vim.cmd.stopinsert()
 end
 
 ---get directory path to open based on `collapse_dirs` options

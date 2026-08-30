@@ -78,13 +78,13 @@ local file_browser = function(opts)
 
   if fb_config.values.mappings then
     defaults.attach_mappings = function(prompt_bufnr, map)
-      if fb_config.values.attach_mappings then
-        fb_config.values.attach_mappings(prompt_bufnr, map)
-      end
       for mode, tbl in pairs(fb_config.values.mappings) do
         for key, action in pairs(tbl) do
           map(mode, key, action)
         end
+      end
+      if fb_config.values.attach_mappings then
+        fb_config.values.attach_mappings(prompt_bufnr, map)
       end
       return true
     end

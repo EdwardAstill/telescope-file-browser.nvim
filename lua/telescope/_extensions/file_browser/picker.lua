@@ -115,6 +115,9 @@ local fb_picker = {}
 ---@field grouped boolean: group initial sorting by directories and then files (default: `false`)
 ---@field files boolean: start in file (true) or folder (false) browser (default: `true`)
 ---@field tree boolean: display a fixed-root expandable tree (default: `false`)
+---@field tree_indent string: indentation for each tree depth (default: `"  "`)
+---@field tree_expanded string: marker for expanded directories (default: `""`)
+---@field tree_collapsed string: marker for collapsed directories (default: `""`)
 ---@field add_dirs boolean: whether the file browser shows folders (default: `true`)
 ---@field depth number: file tree depth to display, `false` for unlimited depth (default: `1`)
 ---@field auto_depth boolean|number: unlimit or set `depth` to `auto_depth` & unset grouped on prompt for file_browser (default: `false`)
@@ -152,7 +155,11 @@ fb_picker.file_browser = function(opts)
   opts.path = opts.path and fb_utils.to_absolute_path(opts.path) or opts.cwd
   opts.files = vim.F.if_nil(opts.files, true)
   opts.tree = vim.F.if_nil(opts.tree, false)
+  opts.tree_indent = vim.F.if_nil(opts.tree_indent, "  ")
+  opts.tree_expanded = vim.F.if_nil(opts.tree_expanded, "")
+  opts.tree_collapsed = vim.F.if_nil(opts.tree_collapsed, "")
   opts.initial_mode = opts.tree and vim.F.if_nil(opts.initial_mode, "normal") or opts.initial_mode
+  opts.sorting_strategy = opts.tree and "ascending" or opts.sorting_strategy
   opts.quiet = vim.F.if_nil(opts.quiet, false)
   opts.hide_parent_dir = vim.F.if_nil(opts.hide_parent_dir, false)
   opts.select_buffer = vim.F.if_nil(opts.select_buffer, false)

@@ -126,13 +126,26 @@ local make_entry = function(opts)
     local icon, icon_hl
 
     local tail = fb_utils.sanitize_path_str(entry.ordinal)
-    local path_display = utils.transform_path(opts, tail)
+    local tree_prefix
+    local path_display
+    if opts.tree and entry._tree_depth ~= nil then
+      tree_prefix, path_display = fb_make_entry_utils.get_tree_display(entry, opts)
+    else
+      path_display = utils.transform_path(opts, tail)
+    end
 
     if entry.is_dir then
       if entry.path == parent_dir then
         path_display = ".."
       end
       path_display = path_display .. os_sep
+    end
+
+    local tree_prefix_width = 0
+    if tree_prefix then
+      tree_prefix_width = strings.strdisplaywidth(tree_prefix)
+      table.insert(widths, { width = tree_prefix_width })
+      table.insert(display_array, { tree_prefix, "Comment" })
     end
 
     if not opts.disable_devicons then
@@ -157,7 +170,7 @@ local make_entry = function(opts)
       end
     end
 
-    local file_width = vim.F.if_nil(opts.file_width, math.max(15, total_file_width))
+    local file_width = vim.F.if_nil(opts.file_width, math.max(15, total_file_width - tree_prefix_width))
     -- TODO maybe this can be dealt with more cleanly
     if #path_display > file_width then
       path_display = strings.truncate(path_display, file_width, nil, -1)

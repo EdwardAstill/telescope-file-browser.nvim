@@ -4,12 +4,29 @@ local Path = require "plenary.path"
 
 local action_state = require "telescope.actions.state"
 local action_set = require "telescope.actions.set"
+local telescope_actions = require "telescope.actions"
 
 local config = {}
 
 _TelescopeFileBrowserConfig = {
   use_ui_input = true,
   quiet = false,
+  tree = false,
+  tree_indent = "  ",
+  tree_expanded = "",
+  tree_collapsed = "",
+  tree_mappings = {
+    ["i"] = {
+      ["<Esc>"] = fb_actions.normal_mode,
+    },
+    ["n"] = {
+      ["i"] = telescope_actions.move_selection_previous,
+      ["k"] = telescope_actions.move_selection_next,
+      ["j"] = fb_actions.collapse,
+      ["l"] = fb_actions.expand,
+      ["/"] = fb_actions.enter_search,
+    },
+  },
   mappings = {
     ["i"] = {
       ["<A-c>"] = fb_actions.create,
@@ -45,7 +62,7 @@ _TelescopeFileBrowserConfig = {
       ["s"] = fb_actions.toggle_all,
     },
   },
-  attach_mappings = function(_, _)
+  attach_mappings = function(prompt_bufnr, map)
     local entry_is_dir = function()
       local entry = action_state.get_selected_entry()
       return entry and fb_utils.is_dir(entry.Path)
@@ -56,13 +73,41 @@ _TelescopeFileBrowserConfig = {
       local finder = picker.finder
       local prompt = picker:_get_prompt()
       local entry = action_state.get_selected_entry()
-      return entry == nil and #prompt > 0 and finder.create_from_prompt
+      return not finder.tree and entry == nil and #prompt > 0 and finder.create_from_prompt
+    end
+
+    local empty_tree_selection = function()
+      local picker = action_state.get_current_picker(prompt_bufnr)
+      return picker.finder.tree and action_state.get_selected_entry() == nil
+    end
+
+    local select_dir = function(bufnr, select_type)
+      local finder = action_state.get_current_picker(bufnr).finder
+      if finder.tree then
+        return
+      end
+      fb_actions.open_dir(bufnr, select_type)
     end
 
     action_set.select:replace_map {
-      [entry_is_dir] = fb_actions.open_dir,
+      [empty_tree_selection] = function() end,
+      [entry_is_dir] = select_dir,
       [create_from_prompt] = fb_actions.create_from_prompt,
     }
+
+    local finder = action_state.get_current_picker(prompt_bufnr).finder
+    if finder.tree then
+      for mode, mappings in pairs(config.values.tree_mappings) do
+        for key, action in pairs(mappings) do
+          map(mode, key, action)
+        end
+      end
+      for mode, mappings in pairs(config.values._user_mappings or {}) do
+        for key, action in pairs(mappings) do
+          map(mode, key, action)
+        end
+      end
+    end
 
     return true
   end,
@@ -119,6 +164,7 @@ local hijack_netrw = function()
 end
 
 config.setup = function(opts)
+  local user_mappings = opts.mappings and vim.deepcopy(opts.mappings) or nil
   -- TODO maybe merge other keys as well from telescope.config
   config.values.mappings =
     vim.tbl_deep_extend("force", config.values.mappings, require("telescope.config").values.mappings)
@@ -132,6 +178,9 @@ config.setup = function(opts)
     end
   end
   config.values = vim.tbl_deep_extend("force", config.values, opts)
+  if user_mappings then
+    config.values._user_mappings = user_mappings
+  end
 
   if config.values.hijack_netrw then
     hijack_netrw()

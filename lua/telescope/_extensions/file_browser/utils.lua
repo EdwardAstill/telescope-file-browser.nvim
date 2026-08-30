@@ -199,10 +199,10 @@ fb_utils.sanitize_path_str = function(path)
   return (path:gsub("(.)/$", "%1"))
 end
 
-local _get_selection_index = function(path, dir, results)
+local _get_selection_index = function(path, dir, results, tree)
   local path_dir = Path:new(path):parent():absolute()
   path = fb_utils.sanitize_path_str(path)
-  if dir == path_dir then
+  if tree or dir == path_dir then
     for i, path_entry in ipairs(results) do
       if fb_utils.sanitize_path_str(path_entry.value) == path then
         return i
@@ -217,7 +217,7 @@ fb_utils.selection_callback = function(current_picker, absolute_path)
   table.insert(current_picker._completion_callbacks, function(picker)
     local finder = picker.finder
     local dir = finder.files and finder.path or finder.cwd
-    local selection_index = _get_selection_index(absolute_path, dir, finder.results)
+    local selection_index = _get_selection_index(absolute_path, dir, finder.results, finder.tree)
     if selection_index and selection_index ~= 1 then
       picker:set_selection(picker:get_row(selection_index))
     end

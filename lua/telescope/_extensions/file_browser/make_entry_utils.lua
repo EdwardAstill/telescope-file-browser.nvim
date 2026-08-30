@@ -26,4 +26,24 @@ M.get_ordinal_path = function(path, cwd, parent)
   return path:sub(cwd_substr, -1)
 end
 
+---@param entry table
+---@param opts table
+---@return string prefix
+---@return string basename
+M.get_tree_display = function(entry, opts)
+  local indent = string.rep(opts.tree_indent or "  ", entry._tree_depth or 0)
+  local expanded = opts.tree_expanded or ""
+  local collapsed = opts.tree_collapsed or ""
+  local marker_width = math.max(vim.fn.strdisplaywidth(expanded), vim.fn.strdisplaywidth(collapsed))
+  local marker
+
+  if entry.is_dir and entry._tree_has_children ~= false then
+    marker = entry._tree_expanded and expanded or collapsed
+  else
+    marker = string.rep(" ", marker_width)
+  end
+
+  return indent .. marker .. " ", vim.fs.basename(entry.path)
+end
+
 return M
