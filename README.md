@@ -15,6 +15,7 @@ More demo examples can be found in the [showcase issue](https://github.com/nvim-
 - [Installation](#installation)
 - [Setup and Configuration](#setup-and-configuration)
 - [Usage](#usage)
+- [Tree Mode](#tree-mode)
 - [Mappings](#mappings)
 - [Documentation](#documentation)
 - [Workflow](#workflow)
@@ -109,6 +110,10 @@ require("telescope").setup {
       cwd_to_path = false,
       grouped = false,
       files = true,
+      tree = false,
+      tree_indent = "  ",
+      tree_expanded = "",
+      tree_collapsed = "",
       add_dirs = true,
       depth = 1,
       auto_depth = false,
@@ -185,6 +190,42 @@ vim.keymap.set("n", "<space>fb", function()
 	require("telescope").extensions.file_browser.file_browser()
 end)
 ```
+
+## Tree Mode
+
+Set `tree = true` to keep `path` as a fixed root and expand directories inline
+instead of entering a Miller-style directory view:
+
+```lua
+require("telescope").setup {
+  extensions = {
+    file_browser = {
+      tree = true,
+      grouped = true,
+    },
+  },
+}
+```
+
+The empty prompt shows the root's direct children plus manually expanded
+directories. Search always considers the complete recursive tree. A matching
+file is displayed with every ancestor directory expanded down to it. A matching
+directory is displayed with its ancestors and complete recursive subtree.
+Clearing the prompt restores the manual expansion state from before the search.
+
+Tree results retain depth-first hierarchy rather than being reordered by fuzzy
+score. Tree mode starts in normal mode with these defaults:
+
+| Key | Action |
+| --- | --- |
+| `i` / `k` | Move up / down through visible rows |
+| `j` | Collapse the selected directory or its nearest visible parent |
+| `l` | Expand the selected directory |
+| `<CR>` | Open a file; do nothing on a directory |
+| `/` | Enter insert mode to search |
+| `<Esc>` | Return from search input to normal-mode navigation |
+
+Override any tree control through the normal extension `mappings` table.
 
 ## Mappings
 
@@ -271,9 +312,10 @@ Please make sure to consult the docs prior to raising issues for asking question
 1. `file_browser`: finds files and folders in the (currently) selected folder (denoted as `path`, default: `cwd`)
 2. `folder_browser`: swiftly fuzzy find folders from `cwd` downwards to switch folders for the `file_browser` (i.e. set `path` to selected folder)
 
-Within a single session, `path` always refers to the folder the `file_browser`
-is currently in and changes by selecting folders from within the `file` or
-`folder_browser`.
+Within a single list-mode session, `path` refers to the folder the
+`file_browser` is currently in and changes by selecting folders from within the
+`file` or `folder_browser`. With `tree = true`, `path` remains the fixed tree
+root and directory selection only expands or collapses rows.
 
 If you want to open the `file_browser` from within the folder of your current
 buffer, you should pass `path = "%:p:h"` to the `opts` table of the picker

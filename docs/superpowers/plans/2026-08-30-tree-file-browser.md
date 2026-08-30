@@ -39,7 +39,7 @@
 - Entry input fields: `path: string`, `ordinal: string`, `is_dir: boolean`
 - Projected metadata: `_tree_depth: integer`, `_tree_expanded: boolean`, `_tree_has_children: boolean`
 
-- [ ] **Step 1: Write failing tree projection tests**
+- [x] **Step 1: Write failing tree projection tests**
 
 ```lua
 local Tree = require "telescope._extensions.file_browser.tree"
@@ -103,13 +103,13 @@ describe("tree projection", function()
 end)
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
-Run: `make test-deps && nvim --headless --noplugin -u scripts/minimal_init.vim -c "PlenaryBustedFile lua/tests/tree_spec.lua"`
+Run: `make test-deps && nvim --headless --noplugin -u scripts/minimal_init.vim -c "lua require('plenary.busted').run('lua/tests/tree_spec.lua')"`
 
 Expected: FAIL because `telescope._extensions.file_browser.tree` does not exist.
 
-- [ ] **Step 3: Implement the minimal tree model**
+- [x] **Step 3: Implement the minimal tree model**
 
 Create a `Tree` object that normalizes the root with `fb_utils.sanitize_path_str`, indexes entries by path, indexes each path's parent using `plenary.path`, sorts each children array with directories first only when `opts.grouped`, and keeps an `expanded` set. `project("")` must depth-first walk only expanded branches. `project(prompt)` must use `telescope.algos.fzy.has_match`, add ancestors for every direct match, add all descendants for direct directory matches, then depth-first walk only the include set while assigning the three `_tree_*` fields.
 
@@ -167,13 +167,13 @@ function Tree:collapse(path)
 end
 ```
 
-- [ ] **Step 4: Run the focused test and verify GREEN**
+- [x] **Step 4: Run the focused test and verify GREEN**
 
-Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "PlenaryBustedFile lua/tests/tree_spec.lua"`
+Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "lua require('plenary.busted').run('lua/tests/tree_spec.lua')"`
 
 Expected: all tree projection tests PASS.
 
-- [ ] **Step 5: Commit the tree model**
+- [x] **Step 5: Commit the tree model**
 
 ```bash
 git add lua/telescope/_extensions/file_browser/tree.lua lua/tests/tree_spec.lua
@@ -193,31 +193,31 @@ git commit -m "feat: add tree hierarchy projection"
 - Finder fields: `tree_state: Tree`, `results: entry[]`, `close(): nil`
 - Outer finder fields: `tree: boolean`, `_browse_tree: function`, proxied `tree_state`
 
-- [ ] **Step 1: Write a failing real-filesystem finder test**
+- [x] **Step 1: Write a failing real-filesystem finder test**
 
 Create a temporary directory containing `src/main.lua`, `src/util/parser.lua`, and `README.md`. Supply a real entry maker that uses `vim.uv.fs_stat(path).type == "directory"`, call `fb_finders.browse_tree` with `use_fd = false`, `git_status = false`, `hidden = true`, and collect results through the finder's callable interface. Assert the empty prompt returns `src` and `README.md`, expanding `src` reveals its children, and prompt `parser` returns `src`, `src/util`, and `src/util/parser.lua` in order. Remove the temporary directory in `after_each`.
 
-- [ ] **Step 2: Run the focused finder test and verify RED**
+- [x] **Step 2: Run the focused finder test and verify RED**
 
-Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "PlenaryBustedFile lua/tests/tree_finder_spec.lua"`
+Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "lua require('plenary.busted').run('lua/tests/tree_finder_spec.lua')"`
 
 Expected: FAIL because `fb_finders.browse_tree` does not exist.
 
-- [ ] **Step 3: Implement the recursive catalog and callable finder**
+- [x] **Step 3: Implement the recursive catalog and callable finder**
 
 `browse_tree` must force files plus directories and unlimited depth, collect Git status through the existing code path, convert paths with the configured entry maker, construct one `Tree`, and return a callable object. On each call, set `self.results = self.tree_state:project(prompt)`, assign stable `entry.index` values, invoke `process_result` in order, and then invoke `process_complete`.
 
 Extend the outer finder so `tree = true` selects `_browse_tree`; list and folder branches remain byte-for-byte behaviorally equivalent. In `picker.lua`, default tree pickers to `initial_mode = "normal"`, use prompt title `Tree Browser`, and use `require("telescope.sorters").highlighter_only {}` so finder order remains stable.
 
-- [ ] **Step 4: Run finder and tree tests and verify GREEN**
+- [x] **Step 4: Run finder and tree tests and verify GREEN**
 
-Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "PlenaryBustedFile lua/tests/tree_finder_spec.lua"`
+Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "lua require('plenary.busted').run('lua/tests/tree_finder_spec.lua')"`
 
-Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "PlenaryBustedFile lua/tests/tree_spec.lua"`
+Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "lua require('plenary.busted').run('lua/tests/tree_spec.lua')"`
 
 Expected: both files PASS.
 
-- [ ] **Step 5: Commit finder integration**
+- [x] **Step 5: Commit finder integration**
 
 ```bash
 git add lua/telescope/_extensions/file_browser/finders.lua lua/telescope/_extensions/file_browser/picker.lua lua/tests/tree_finder_spec.lua
@@ -242,7 +242,7 @@ git commit -m "feat: add recursive tree finder"
 - Produces options: `tree`, `tree_indent`, `tree_expanded`, `tree_collapsed`
 - Consumes: outer finder `tree_state` and latest `results`
 
-- [ ] **Step 1: Write failing display-helper tests**
+- [x] **Step 1: Write failing display-helper tests**
 
 Add table-driven assertions to `make_entry_spec.lua`:
 
@@ -265,19 +265,19 @@ describe("get_tree_display", function()
 end)
 ```
 
-- [ ] **Step 2: Write a failing picker smoke test**
+- [x] **Step 2: Write a failing picker smoke test**
 
 Open a real tree picker against a temporary directory with `tree = true`, `git_status = false`, `display_stat = false`, and an `attach_mappings` callback that records buffer-local mappings. Assert the current picker starts in normal mode, its finder exposes `tree_state`, directory selection through `action_set.select` leaves `finder.path` unchanged, and the configured tree actions exist. Close the picker and delete the temporary directory after the assertion.
 
-- [ ] **Step 3: Run display and picker tests and verify RED**
+- [x] **Step 3: Run display and picker tests and verify RED**
 
-Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "PlenaryBustedFile lua/tests/make_entry_spec.lua"`
+Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "lua require('plenary.busted').run('lua/tests/make_entry_spec.lua')"`
 
-Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "PlenaryBustedFile lua/tests/tree_picker_spec.lua"`
+Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "lua require('plenary.busted').run('lua/tests/tree_picker_spec.lua')"`
 
 Expected: FAIL because the display helper, tree options, and actions are missing.
 
-- [ ] **Step 4: Implement display and controls**
+- [x] **Step 4: Implement display and controls**
 
 `get_tree_display` must use `vim.fs.basename(entry.path)`, prepend `tree_indent` once per depth, show the configured expanded/collapsed marker for directories, and reserve the same marker width with spaces for files. `make_entry.lua` must insert this prefix as a separately highlighted display segment and keep `entry.ordinal` unchanged.
 
@@ -296,21 +296,21 @@ map("i", "<Esc>", fb_actions.normal_mode)
 
 Set option defaults to `tree = false`, `tree_indent = "  "`, `tree_expanded = ""`, and `tree_collapsed = ""`. The dotfiles opt into tree mode.
 
-- [ ] **Step 5: Run focused tests and verify GREEN**
+- [x] **Step 5: Run focused tests and verify GREEN**
 
-Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "PlenaryBustedFile lua/tests/make_entry_spec.lua"`
+Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "lua require('plenary.busted').run('lua/tests/make_entry_spec.lua')"`
 
-Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "PlenaryBustedFile lua/tests/tree_picker_spec.lua"`
+Run: `nvim --headless --noplugin -u scripts/minimal_init.vim -c "lua require('plenary.busted').run('lua/tests/tree_picker_spec.lua')"`
 
 Expected: both files PASS with no warnings.
 
-- [ ] **Step 6: Run the full plugin suite**
+- [x] **Step 6: Run the full plugin suite**
 
 Run: `make test`
 
 Expected: every Plenary spec PASS.
 
-- [ ] **Step 7: Commit tree interaction**
+- [x] **Step 7: Commit tree interaction**
 
 ```bash
 git add lua/telescope/_extensions/file_browser lua/tests
@@ -328,17 +328,20 @@ git commit -m "feat: add expandable tree interaction"
 **Interfaces:**
 - Documents the four tree options, default controls, fixed-root behavior, and search projection semantics.
 
-- [ ] **Step 1: Document tree setup and controls**
+- [x] **Step 1: Document tree setup and controls**
 
 Add a concise README example with `tree = true`, describe `/`, `<Esc>`, `i/k/j/l`, and state that matching files reveal ancestors while matching folders reveal complete subtrees. Add EmmyLua option fields and action comments so docgen includes the new API.
 
-- [ ] **Step 2: Generate Vim help**
+- [x] **Step 2: Update and verify Vim help**
 
-Run: `make docgen`
+Run: `make docgen`. If the upstream bootstrap is unavailable, update the help
+from the same annotated APIs and verify its tags with `:helptags doc` plus
+`:help` lookups for each new action and finder.
 
-Expected: `doc/telescope-file-browser.txt` updates without docgen errors.
+Actual: the upstream bootstrap URL returned HTTP 404, so the help was updated
+from the annotations and both new help tags were resolved successfully.
 
-- [ ] **Step 3: Run formatting and compatibility checks**
+- [x] **Step 3: Run formatting and compatibility checks**
 
 Run: `stylua --check lua` when `stylua` is installed; otherwise run `git diff --check` and parse each changed Lua file with `nvim --headless -u NONE -l` through `loadfile`.
 
@@ -346,7 +349,7 @@ Run: `make test`
 
 Expected: formatting/parsing checks and all tests PASS.
 
-- [ ] **Step 4: Commit documentation**
+- [x] **Step 4: Commit documentation**
 
 ```bash
 git add README.md lua/telescope/_extensions/file_browser/picker.lua lua/telescope/_extensions/file_browser/config.lua doc/telescope-file-browser.txt
