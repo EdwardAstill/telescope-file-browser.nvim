@@ -114,6 +114,7 @@ local fb_picker = {}
 ---@field cwd_to_path boolean: whether folder browser is launched from `path` rather than `cwd` (default: `false`)
 ---@field grouped boolean: group initial sorting by directories and then files (default: `false`)
 ---@field files boolean: start in file (true) or folder (false) browser (default: `true`)
+---@field tree boolean: display a fixed-root expandable tree (default: `false`)
 ---@field add_dirs boolean: whether the file browser shows folders (default: `true`)
 ---@field depth number: file tree depth to display, `false` for unlimited depth (default: `1`)
 ---@field auto_depth boolean|number: unlimit or set `depth` to `auto_depth` & unset grouped on prompt for file_browser (default: `false`)
@@ -150,6 +151,8 @@ fb_picker.file_browser = function(opts)
   opts.cwd = opts.cwd and fb_utils.to_absolute_path(opts.cwd) or cwd
   opts.path = opts.path and fb_utils.to_absolute_path(opts.path) or opts.cwd
   opts.files = vim.F.if_nil(opts.files, true)
+  opts.tree = vim.F.if_nil(opts.tree, false)
+  opts.initial_mode = opts.tree and vim.F.if_nil(opts.initial_mode, "normal") or opts.initial_mode
   opts.quiet = vim.F.if_nil(opts.quiet, false)
   opts.hide_parent_dir = vim.F.if_nil(opts.hide_parent_dir, false)
   opts.select_buffer = vim.F.if_nil(opts.select_buffer, false)
@@ -184,11 +187,11 @@ fb_picker.file_browser = function(opts)
 
   pickers
     .new(opts, {
-      prompt_title = opts.files and "File Browser" or "Folder Browser",
+      prompt_title = opts.tree and "Tree Browser" or (opts.files and "File Browser" or "Folder Browser"),
       results_title = Path:new(opts.path):make_relative(cwd) .. os_sep,
       prompt_prefix = fb_utils.relative_path_prefix(opts.finder),
       previewer = conf.file_previewer(opts),
-      sorter = conf.file_sorter(opts),
+      sorter = opts.tree and require("telescope.sorters").highlighter_only(opts) or conf.file_sorter(opts),
     })
     :find()
 end

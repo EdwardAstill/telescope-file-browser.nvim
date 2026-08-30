@@ -4,6 +4,7 @@
 local fb_utils = require "telescope._extensions.file_browser.utils"
 local fb_make_entry = require "telescope._extensions.file_browser.make_entry"
 local fb_git = require "telescope._extensions.file_browser.git"
+local fb_tree = require "telescope._extensions.file_browser.tree"
 
 local async_oneshot_finder = require "telescope.finders.async_oneshot_finder"
 local finders = require "telescope.finders"
@@ -134,6 +135,65 @@ fb_finders.browse_files = function(opts)
   }
 end
 
+--- Returns a finder that projects a recursive file catalog as an expandable tree.
+---@param opts telescope-file-browser.FinderOpts?: options to pass to the finder
+fb_finders.browse_tree = function(opts)
+  opts = opts or {}
+  local tree_opts = vim.tbl_extend("force", opts, {
+    files = true,
+    add_dirs = true,
+    depth = false,
+  })
+
+  local data
+  if use_fd(tree_opts) then
+    data = fb_utils.job("fd", fd_file_args(tree_opts), tree_opts.path)
+  else
+    data = scan.scan_dir(tree_opts.path, {
+      add_dirs = true,
+      depth = math.huge,
+      hidden = hidden_opts(tree_opts),
+      respect_gitignore = tree_opts.respect_gitignore,
+    })
+  end
+
+  local git_file_status = {}
+  if tree_opts.git_status then
+    local git_root = fb_git.find_root(tree_opts.path)
+    if git_root ~= nil then
+      local git_status = Job:new({ cwd = tree_opts.path, command = "git", args = git_args() }):sync()
+      git_file_status = fb_git.parse_status_output(git_status, git_root)
+    end
+  end
+
+  local make_entry = tree_opts.entry_maker { cwd = tree_opts.path, git_file_status = git_file_status }
+  local entries = {}
+  for _, path in ipairs(data) do
+    local entry = make_entry(path)
+    if entry then
+      table.insert(entries, entry)
+    end
+  end
+
+  local tree_state = fb_tree.new(tree_opts.path, entries, { grouped = tree_opts.grouped })
+  return setmetatable({
+    tree_state = tree_state,
+    results = {},
+    close = function() end,
+  }, {
+    __call = function(self, prompt, process_result, process_complete)
+      self.results = tree_state:project(prompt)
+      for index, entry in ipairs(self.results) do
+        entry.index = index
+        if process_result(entry) then
+          break
+        end
+      end
+      process_complete()
+    end,
+  })
+end
+
 --- Returns a finder that is populated with (sub-)folders of `cwd`.
 ---@note Uses `fd` if available for more async-ish browsing and speed-ups
 ---@param opts telescope-file-browser.FinderOpts?: options to pass to the finder
@@ -196,6 +256,7 @@ fb_finders.finder = function(opts)
     no_ignore = vim.F.if_nil(opts.no_ignore, false),
     follow_symlinks = vim.F.if_nil(opts.follow_symlinks, false),
     files = vim.F.if_nil(opts.files, true), -- file or folders mode
+    tree = vim.F.if_nil(opts.tree, false),
     grouped = vim.F.if_nil(opts.grouped, false),
     quiet = vim.F.if_nil(opts.quiet, false),
     select_buffer = vim.F.if_nil(opts.select_buffer, false),
@@ -210,6 +271,7 @@ fb_finders.finder = function(opts)
     end),
     _browse_files = vim.F.if_nil(opts.browse_files, fb_finders.browse_files),
     _browse_folders = vim.F.if_nil(opts.browse_folders, fb_finders.browse_folders),
+    _browse_tree = vim.F.if_nil(opts.browse_tree, fb_finders.browse_tree),
     close = function(self)
       self._finder = nil
     end,
@@ -219,7 +281,7 @@ fb_finders.finder = function(opts)
     use_fd = vim.F.if_nil(opts.use_fd, true),
   }, {
     __call = function(self, ...)
-      if self.files and self.auto_depth then
+      if not self.tree and self.files and self.auto_depth then
         local prompt = select(1, ...)
         if prompt ~= "" then
           if self.__depth == nil then
@@ -242,7 +304,9 @@ fb_finders.finder = function(opts)
       end
       -- (re-)initialize finder on first start or refresh due to action
       if not self._finder then
-        if self.files then
+        if self.tree then
+          self._finder = self:_browse_tree()
+        elseif self.files then
           self._finder = self:_browse_files()
         else
           self._finder = self:_browse_folders()
