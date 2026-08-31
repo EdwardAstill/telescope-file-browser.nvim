@@ -47,3 +47,37 @@ describe("outline extraction", function()
     assert.is_nil(outline.extract("a.lua", { "return true" }))
   end)
 end)
+
+describe("outline previewer", function()
+  it("loads and extracts only the selected file when it is previewed", function()
+    local loaded = {}
+    local previewer = outline.new {
+      buffer_previewer_maker = function(path, bufnr, opts)
+        table.insert(loaded, path)
+        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+          "{",
+          '  "first": true,',
+          '  "nested": { "ignored": true }',
+          "}",
+        })
+        opts.callback(bufnr)
+      end,
+    }
+
+    assert.are.same({}, loaded)
+
+    local original_bufnr = vim.api.nvim_get_current_buf()
+    local preview_bufnr = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_win_set_buf(0, preview_bufnr)
+    previewer:preview({ path = "/tmp/selected.json" }, { layout = { preview = { winid = 0 } } })
+
+    assert.is_true(vim.wait(1000, function()
+      return vim.api.nvim_buf_get_lines(previewer.state.bufnr, 0, -1, false)[1] == "first"
+    end, 10))
+    assert.are.same({ "/tmp/selected.json" }, loaded)
+    assert.are.same({ "first", "nested" }, vim.api.nvim_buf_get_lines(previewer.state.bufnr, 0, -1, false))
+
+    vim.api.nvim_win_set_buf(0, original_bufnr)
+    previewer:teardown()
+  end)
+end)

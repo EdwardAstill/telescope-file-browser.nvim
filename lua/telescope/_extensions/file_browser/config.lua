@@ -23,6 +23,7 @@ _TelescopeFileBrowserConfig = {
       ["<C-Down>"] = fb_actions.next_match,
       ["<Left>"] = fb_actions.collapse,
       ["<Right>"] = fb_actions.expand,
+      ["<M-o>"] = telescope_actions.cycle_previewers_next,
       ["<Esc>"] = telescope_actions.close,
     },
   },

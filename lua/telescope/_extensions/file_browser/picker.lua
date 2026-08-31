@@ -41,6 +41,7 @@ local pickers = require "telescope.pickers"
 local conf = require("telescope.config").values
 
 local fb_finder = require "telescope._extensions.file_browser.finders"
+local fb_outline = require "telescope._extensions.file_browser.outline"
 local fb_utils = require "telescope._extensions.file_browser.utils"
 
 local Path = require "plenary.path"
@@ -208,12 +209,17 @@ fb_picker.file_browser = function(opts)
     -- end)
   end
 
+  local previewer = conf.file_previewer(opts)
+  if opts.tree and previewer then
+    previewer = { fb_outline.new(opts), previewer }
+  end
+
   pickers
     .new(opts, {
       prompt_title = opts.tree and "Tree Browser" or (opts.files and "File Browser" or "Folder Browser"),
       results_title = Path:new(opts.path):make_relative(cwd) .. os_sep,
       prompt_prefix = fb_utils.relative_path_prefix(opts.finder),
-      previewer = conf.file_previewer(opts),
+      previewer = previewer,
       sorter = opts.tree and require("telescope.sorters").highlighter_only(opts) or conf.file_sorter(opts),
     })
     :find()

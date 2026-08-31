@@ -153,4 +153,61 @@ function M.extract(path, lines)
   return handler and handler(lines) or nil
 end
 
+---@param opts table?
+---@return table
+function M.new(opts)
+  opts = opts or {}
+  local from_entry = require "telescope.from_entry"
+  local previewers = require "telescope.previewers"
+  local buffer_previewer_maker = opts.buffer_previewer_maker
+    or require("telescope.config").values.buffer_previewer_maker
+
+  return previewers.new_buffer_previewer {
+    title = "Outline Preview",
+    get_buffer_by_name = function(_, entry)
+      return from_entry.path(entry, false, false)
+    end,
+    define_preview = function(self, entry)
+      local path = from_entry.path(entry, false, false)
+      if not path then
+        return
+      end
+
+      local supported = M.supports(path)
+      local cached = self.state.bufname == path
+      local preview_opts = opts.preview
+      if supported then
+        preview_opts = vim.tbl_deep_extend(
+          "force",
+          {},
+          type(opts.preview) == "table" and opts.preview or {},
+          { highlight_limit = 0 }
+        )
+      end
+
+      buffer_previewer_maker(path, self.state.bufnr, {
+        bufname = self.state.bufname,
+        winid = self.state.winid,
+        preview = preview_opts,
+        file_encoding = opts.file_encoding,
+        callback = function(bufnr)
+          if not supported or cached or not vim.api.nvim_buf_is_valid(bufnr) then
+            return
+          end
+
+          local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+          local extracted = M.extract(path, lines)
+          vim.api.nvim_buf_set_lines(
+            bufnr,
+            0,
+            -1,
+            false,
+            extracted and #extracted > 0 and extracted or { "No outline available" }
+          )
+        end,
+      })
+    end,
+  }
+end
+
 return M

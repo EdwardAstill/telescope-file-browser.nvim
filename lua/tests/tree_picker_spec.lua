@@ -65,6 +65,8 @@ describe("tree picker", function()
     local picker = action_state.get_current_picker(prompt_bufnr)
     assert.are.same("insert", picker.initial_mode)
     assert.is_true(action_state.get_selected_entry().is_dir)
+    assert.are.same(2, #picker.all_previewers)
+    assert.are.same(1, picker.current_previewer_index)
 
     action_set.select(prompt_bufnr, "default")
 
@@ -86,8 +88,12 @@ describe("tree picker", function()
     assert.is_not_nil(mapped["<Right>"])
     assert.is_not_nil(mapped["<CR>"])
     assert.is_not_nil(mapped["<Esc>"])
+    assert.is_not_nil(mapped["<M-o>"])
     assert.is_nil(mapped["/"])
     assert.is_nil(mapped["<BS>"])
+
+    mapped["<M-o>"].callback(prompt_bufnr)
+    assert.are.same(2, picker.current_previewer_index)
 
     local src = Path:new(root, "src"):absolute()
     local child = Path:new(root, "src", "child.lua"):absolute()
