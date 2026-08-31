@@ -11,6 +11,10 @@ describe("outline extraction", function()
     }))
   end)
 
+  it("returns an empty outline for incomplete JSON", function()
+    assert.are.same({}, outline.extract("config.json", { '{ "kept": true' }))
+  end)
+
   it("indents Markdown headings and ignores fenced code", function()
     assert.are.same({ "Guide", "  Setup", "    Linux" }, outline.extract("README.md", {
       "# Guide",
@@ -19,6 +23,15 @@ describe("outline extraction", function()
       "### ignored",
       "```",
       "### Linux ###",
+    }))
+  end)
+
+  it("does not close Markdown fences that have trailing content", function()
+    assert.are.same({}, outline.extract("README.md", {
+      "```",
+      "``` trailing",
+      "### hidden",
+      "```",
     }))
   end)
 
@@ -49,9 +62,23 @@ describe("outline extraction", function()
 end)
 
 describe("outline previewer", function()
+  local original_bufnr
+  local previewer
+
+  after_each(function()
+    if original_bufnr and vim.api.nvim_buf_is_valid(original_bufnr) then
+      vim.api.nvim_win_set_buf(0, original_bufnr)
+    end
+    if previewer then
+      previewer:teardown()
+    end
+    original_bufnr = nil
+    previewer = nil
+  end)
+
   it("loads and extracts only the selected file when it is previewed", function()
     local loaded = {}
-    local previewer = outline.new {
+    previewer = outline.new {
       buffer_previewer_maker = function(path, bufnr, opts)
         table.insert(loaded, path)
         vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
@@ -66,7 +93,7 @@ describe("outline previewer", function()
 
     assert.are.same({}, loaded)
 
-    local original_bufnr = vim.api.nvim_get_current_buf()
+    original_bufnr = vim.api.nvim_get_current_buf()
     local preview_bufnr = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_win_set_buf(0, preview_bufnr)
     previewer:preview({ path = "/tmp/selected.json" }, { layout = { preview = { winid = 0 } } })
@@ -76,8 +103,24 @@ describe("outline previewer", function()
     end, 10))
     assert.are.same({ "/tmp/selected.json" }, loaded)
     assert.are.same({ "first", "nested" }, vim.api.nvim_buf_get_lines(previewer.state.bufnr, 0, -1, false))
+  end)
 
-    vim.api.nvim_win_set_buf(0, original_bufnr)
-    previewer:teardown()
+  it("keeps directory previews raw when their names use supported extensions", function()
+    previewer = outline.new {
+      buffer_previewer_maker = function(_, bufnr, opts)
+        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "child.py", "README.md" })
+        opts.callback(bufnr)
+      end,
+    }
+
+    original_bufnr = vim.api.nvim_get_current_buf()
+    local preview_bufnr = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_win_set_buf(0, preview_bufnr)
+    previewer:preview({ path = "/tmp/archive.json", is_dir = true }, { layout = { preview = { winid = 0 } } })
+
+    assert.is_true(vim.wait(1000, function()
+      return vim.api.nvim_buf_get_lines(previewer.state.bufnr, 0, -1, false)[1] == "child.py"
+    end, 10))
+    assert.are.same({ "child.py", "README.md" }, vim.api.nvim_buf_get_lines(previewer.state.bufnr, 0, -1, false))
   end)
 end)

@@ -351,6 +351,41 @@ describe("tree picker", function()
     assert.is_nil(insert_mapped["<Right>"])
   end)
 
+  it("ignores the outline toggle when previews are disabled", function()
+    local telescope = require "telescope"
+    telescope.setup {
+      extensions = {
+        file_browser = {
+          tree = true,
+          grouped = true,
+          use_fd = false,
+          preview = false,
+          mappings = {},
+        },
+      },
+    }
+    telescope.load_extension "file_browser"
+    telescope.extensions.file_browser.file_browser {
+      path = root,
+      cwd = root,
+    }
+
+    assert.is_true(vim.wait(1000, function()
+      prompt_bufnr = find_prompt()
+      return prompt_bufnr ~= nil
+    end, 10))
+
+    local mapped = {}
+    for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(prompt_bufnr, "i")) do
+      mapped[mapping.lhs] = mapping
+    end
+
+    assert.is_not_nil(mapped["<M-o>"])
+    assert.has_no.errors(function()
+      mapped["<M-o>"].callback(prompt_bufnr)
+    end)
+  end)
+
   it("closes the picker with Escape from search input", function()
     local telescope = require "telescope"
     telescope.setup {

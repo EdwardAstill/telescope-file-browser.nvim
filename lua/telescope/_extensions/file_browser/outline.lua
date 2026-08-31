@@ -5,6 +5,10 @@ local function_symbol = "󰊕"
 
 local function extract_json(lines)
   local source = table.concat(lines, "\n")
+  if not pcall(vim.json.decode, source) then
+    return {}
+  end
+
   local keys = {}
   local root_type
   local object_depth = 0
@@ -64,7 +68,7 @@ local function extract_markdown(lines)
   local fence_length
 
   for _, line in ipairs(lines) do
-    local marker = line:match "^%s*([`~]+)"
+    local marker, trailing = line:match "^%s*([`~]+)(.*)$"
     local marker_char = marker and marker:sub(1, 1) or nil
     local is_fence = marker
       and #marker >= 3
@@ -74,7 +78,7 @@ local function extract_markdown(lines)
       if not fence_char then
         fence_char = marker_char
         fence_length = #marker
-      elseif marker_char == fence_char and #marker >= fence_length then
+      elseif marker_char == fence_char and #marker >= fence_length and trailing:match "^%s*$" then
         fence_char = nil
         fence_length = nil
       end
@@ -173,7 +177,11 @@ function M.new(opts)
         return
       end
 
-      local supported = M.supports(path)
+      local is_dir = entry.is_dir
+      if is_dir == nil then
+        is_dir = vim.fn.isdirectory(path) == 1
+      end
+      local supported = not is_dir and M.supports(path)
       local cached = self.state.bufname == path
       local preview_opts = opts.preview
       if supported then

@@ -84,4 +84,3 @@ and contain names only.
 - Picker tests prove tree mode installs outline/raw previewers and `<M-o>`, while
   list mode retains one previewer.
 - Run the focused tests and the complete Plenary suite.
-

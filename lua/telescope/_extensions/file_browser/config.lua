@@ -8,6 +8,13 @@ local telescope_actions = require "telescope.actions"
 
 local config = {}
 
+local cycle_outline_previewer = function(prompt_bufnr)
+  local picker = action_state.get_current_picker(prompt_bufnr)
+  if type(picker.all_previewers) == "table" and #picker.all_previewers > 1 then
+    picker:cycle_previewers(1)
+  end
+end
+
 _TelescopeFileBrowserConfig = {
   use_ui_input = true,
   quiet = false,
@@ -23,7 +30,7 @@ _TelescopeFileBrowserConfig = {
       ["<C-Down>"] = fb_actions.next_match,
       ["<Left>"] = fb_actions.collapse,
       ["<Right>"] = fb_actions.expand,
-      ["<M-o>"] = telescope_actions.cycle_previewers_next,
+      ["<M-o>"] = cycle_outline_previewer,
       ["<Esc>"] = telescope_actions.close,
     },
   },

@@ -298,4 +298,3 @@ Expected: all Plenary specs PASS with no errors.
 git add README.md doc/telescope-file-browser.txt
 git commit -m "docs: describe tree outline previews"
 ```
-
