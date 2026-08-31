@@ -1,0 +1,156 @@
+local M = {}
+
+local class_symbol = "󰠱"
+local function_symbol = "󰊕"
+
+local function extract_json(lines)
+  local source = table.concat(lines, "\n")
+  local keys = {}
+  local root_type
+  local object_depth = 0
+  local in_string = false
+  local escaped = false
+  local string_value = {}
+  local candidate
+
+  for index = 1, #source do
+    local char = source:sub(index, index)
+    if in_string then
+      if escaped then
+        table.insert(string_value, char)
+        escaped = false
+      elseif char == "\\" then
+        table.insert(string_value, char)
+        escaped = true
+      elseif char == '"' then
+        in_string = false
+        candidate = table.concat(string_value)
+      else
+        table.insert(string_value, char)
+      end
+    elseif char == '"' then
+      in_string = true
+      escaped = false
+      string_value = {}
+    elseif char == "{" then
+      root_type = root_type or "object"
+      object_depth = object_depth + 1
+      candidate = nil
+    elseif char == "}" then
+      object_depth = math.max(0, object_depth - 1)
+      candidate = nil
+    elseif char == "[" then
+      root_type = root_type or "array"
+      candidate = nil
+    elseif char == "]" or char == "," then
+      candidate = nil
+    elseif char == ":" then
+      if root_type == "object" and object_depth == 1 and candidate then
+        local ok, key = pcall(vim.json.decode, '"' .. candidate .. '"')
+        table.insert(keys, ok and key or candidate)
+      end
+      candidate = nil
+    elseif not char:match "%s" then
+      candidate = nil
+    end
+  end
+
+  return keys
+end
+
+local function extract_markdown(lines)
+  local headings = {}
+  local fence_char
+  local fence_length
+
+  for _, line in ipairs(lines) do
+    local marker = line:match "^%s*([`~]+)"
+    local marker_char = marker and marker:sub(1, 1) or nil
+    local is_fence = marker
+      and #marker >= 3
+      and marker:gsub(marker_char, "") == ""
+
+    if is_fence then
+      if not fence_char then
+        fence_char = marker_char
+        fence_length = #marker
+      elseif marker_char == fence_char and #marker >= fence_length then
+        fence_char = nil
+        fence_length = nil
+      end
+    elseif not fence_char then
+      local hashes, title = line:match "^%s*(#+)%s+(.+)$"
+      if hashes and #hashes <= 6 then
+        title = title:gsub("%s+#+%s*$", ""):gsub("%s+$", "")
+        if title ~= "" then
+          table.insert(headings, string.rep("  ", #hashes - 1) .. title)
+        end
+      end
+    end
+  end
+
+  return headings
+end
+
+local function indentation_width(whitespace)
+  local width = 0
+  for index = 1, #whitespace do
+    if whitespace:sub(index, index) == "\t" then
+      width = width + 8 - (width % 8)
+    else
+      width = width + 1
+    end
+  end
+  return width
+end
+
+local function extract_python(lines)
+  local definitions = {}
+  local stack = {}
+
+  for _, line in ipairs(lines) do
+    local whitespace = line:match "^[ \t]*"
+    local body = line:sub(#whitespace + 1)
+    local name = body:match "^class%s+([%a_][%w_]*)"
+    local symbol = name and class_symbol or function_symbol
+    name = name or body:match "^async%s+def%s+([%a_][%w_]*)" or body:match "^def%s+([%a_][%w_]*)"
+
+    if name then
+      local indent = indentation_width(whitespace)
+      while #stack > 0 and indent <= stack[#stack] do
+        table.remove(stack)
+      end
+      table.insert(definitions, string.rep("  ", #stack) .. symbol .. " " .. name)
+      table.insert(stack, indent)
+    end
+  end
+
+  return definitions
+end
+
+local handlers = {
+  json = extract_json,
+  md = extract_markdown,
+  markdown = extract_markdown,
+  py = extract_python,
+}
+
+local function extension(path)
+  return path:lower():match "%.([^./\\]+)$"
+end
+
+---@param path string
+---@return boolean
+function M.supports(path)
+  return handlers[extension(path)] ~= nil
+end
+
+---@param path string
+---@param lines string[]
+---@return string[]?
+function M.extract(path, lines)
+  local handler = handlers[extension(path)]
+  return handler and handler(lines) or nil
+end
+
+return M
