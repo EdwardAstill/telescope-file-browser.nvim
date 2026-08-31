@@ -2,6 +2,7 @@ local M = {}
 
 local class_symbol = "󰠱"
 local function_symbol = "󰊕"
+local python_identifier = "([%a_\128-\255][%w_\128-\255]*)"
 
 local function extract_json(lines)
   local source = table.concat(lines, "\n")
@@ -115,9 +116,11 @@ local function extract_python(lines)
   for _, line in ipairs(lines) do
     local whitespace = line:match "^[ \t]*"
     local body = line:sub(#whitespace + 1)
-    local name = body:match "^class%s+([%a_][%w_]*)"
+    local name = body:match("^class%s+" .. python_identifier .. "%s*[%(:]")
     local symbol = name and class_symbol or function_symbol
-    name = name or body:match "^async%s+def%s+([%a_][%w_]*)" or body:match "^def%s+([%a_][%w_]*)"
+    name = name
+      or body:match("^async%s+def%s+" .. python_identifier .. "%s*%(")
+      or body:match("^def%s+" .. python_identifier .. "%s*%(")
 
     if name then
       local indent = indentation_width(whitespace)

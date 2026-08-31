@@ -51,6 +51,17 @@ describe("outline extraction", function()
     }))
   end)
 
+  it("preserves non-ASCII Python identifiers", function()
+    assert.are.same({
+      "󰠱 Café",
+      "  󰊕 résumé",
+    }, outline.extract("client.py", {
+      "class Café:",
+      "    def résumé(self):",
+      "        pass",
+    }))
+  end)
+
   it("supports only requested extensions", function()
     assert.is_true(outline.supports "a.json")
     assert.is_true(outline.supports "a.md")
