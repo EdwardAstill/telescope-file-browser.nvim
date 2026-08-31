@@ -216,6 +216,12 @@ The first directly matching row is selected while ancestor and subtree context
 remains visible.
 Clearing the prompt restores the manual expansion state from before the search.
 
+The preview pane lazily summarizes only the selected supported file. JSON
+objects show their top-level keys, Markdown files show headings indented by
+level, and Python files show indented class and function symbols. Unsupported
+files keep Telescope's normal preview. Press `<M-o>` to toggle between the
+outline and full-file preview.
+
 Tree results retain depth-first hierarchy rather than being reordered by fuzzy
 score. Tree mode keeps the search prompt active with these defaults:
 
@@ -225,6 +231,7 @@ score. Tree mode keeps the search prompt active with these defaults:
 | `<Up>` / `<Down>` | Move through visible rows without leaving the prompt |
 | `<C-Up>` / `<C-Down>` | Move to the previous / next direct match, wrapping at either end |
 | `<Left>` / `<Right>` | Collapse / expand the selected directory |
+| `<M-o>` | Toggle outline / full-file preview |
 | `<CR>` | Open a file; do nothing on a directory |
 | `<BS>` | Edit the search text, including when the prompt is empty |
 | `<Esc>` | Close the picker |

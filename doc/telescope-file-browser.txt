@@ -113,6 +113,11 @@ each search update. The horizontal arrows do nothing on files.
 picker. Backspace and `/` edit the prompt normally and never navigate the
 filesystem. Search results retain their hierarchy: matching files include
 their ancestors, and matching directories include their complete subtree.
+The preview pane lazily summarizes only the selected supported file. JSON
+objects show top-level keys, Markdown files show headings indented by level,
+and Python files show indented class and function symbols. Unsupported files
+keep Telescope's normal preview. `<M-o>` toggles between the outline and
+full-file preview.
 
 The file browser picker can be configured with the following options:
 
