@@ -165,10 +165,18 @@ fb_picker.file_browser = function(opts)
   opts.hide_parent_dir = vim.F.if_nil(opts.hide_parent_dir, false)
   opts.select_buffer = vim.F.if_nil(opts.select_buffer, false)
   opts.display_stat = vim.F.if_nil(opts.display_stat, { mode = true, date = true, size = true })
+  if opts.tree and opts.display_stat then
+    local size = type(opts.display_stat) == "table" and opts.display_stat.size or true
+    opts.display_stat = { size = size or true }
+  end
   opts._custom_prompt_title = opts.prompt_title ~= nil
   opts._custom_results_title = opts.results_title ~= nil
   opts.use_fd = vim.F.if_nil(opts.use_fd, true)
-  opts.git_status = vim.F.if_nil(opts.git_status, vim.fn.executable "git" == 1)
+  if opts.tree then
+    opts.git_status = false
+  else
+    opts.git_status = vim.F.if_nil(opts.git_status, vim.fn.executable "git" == 1)
+  end
   opts.prompt_path = vim.F.if_nil(opts.prompt_path, false)
   opts.create_from_prompt = vim.F.if_nil(opts.create_from_prompt, true)
 

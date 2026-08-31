@@ -131,10 +131,11 @@ function Tree:collapse(path, prompt)
   end
 end
 
-local function set_metadata(entry, depth, expanded, has_children)
+local function set_metadata(entry, depth, expanded, has_children, child_count)
   entry._tree_depth = depth
   entry._tree_expanded = expanded
   entry._tree_has_children = has_children
+  entry._tree_child_count = child_count
 end
 
 ---@param prompt string?
@@ -160,7 +161,7 @@ function Tree:project(prompt)
       for _, entry in ipairs(self.children[parent] or {}) do
         local children = self.children[entry.path] or {}
         local expanded = entry.is_dir and self.expanded[entry.path] == true and #children > 0
-        set_metadata(entry, depth, expanded, entry.is_dir and #children > 0)
+        set_metadata(entry, depth, expanded, entry.is_dir and #children > 0, entry.is_dir and #children or nil)
         table.insert(results, entry)
         if expanded then
           add_expanded(entry.path, depth + 1)
@@ -215,7 +216,8 @@ function Tree:project(prompt)
           end
         end
         local expanded = entry.is_dir and has_visible_children and not self.search_collapsed[entry.path]
-        set_metadata(entry, depth, expanded, entry.is_dir and #(self.children[entry.path] or {}) > 0)
+        local child_count = entry.is_dir and #(self.children[entry.path] or {}) or nil
+        set_metadata(entry, depth, expanded, entry.is_dir and child_count > 0, child_count)
         table.insert(results, entry)
         if direct_matches[entry.path] then
           table.insert(match_indices, #results)

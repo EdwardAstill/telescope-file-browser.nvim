@@ -138,7 +138,9 @@ local make_entry = function(opts)
       if entry.path == parent_dir then
         path_display = ".."
       end
-      path_display = path_display .. os_sep
+      if not opts.tree then
+        path_display = path_display .. os_sep
+      end
     end
 
     local tree_prefix_width = 0
@@ -185,7 +187,11 @@ local make_entry = function(opts)
         local v = opts.display_stat[stat]
         if v then
           table.insert(widths, { width = v.width, right_justify = v.right_justify })
-          table.insert(display_array, v.display(entry))
+          if opts.tree and stat == "size" and entry.is_dir then
+            table.insert(display_array, { tostring(entry._tree_child_count or 0), "TelescopePreviewSize" })
+          else
+            table.insert(display_array, v.display(entry))
+          end
         end
       end
     end

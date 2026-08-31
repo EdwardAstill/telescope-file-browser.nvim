@@ -149,6 +149,90 @@ describe("tree picker", function()
     assert.are.same(child, vim.api.nvim_buf_get_name(0))
   end)
 
+  it("shows only icons, names, and sizes in tree rows", function()
+    vim.fn.mkdir(Path:new(root, "src", "nested"):absolute(), "p")
+    vim.fn.system { "git", "-C", root, "init", "--quiet" }
+    assert.are.same(0, vim.v.shell_error)
+
+    local telescope = require "telescope"
+    telescope.setup {
+      extensions = {
+        file_browser = {
+          tree = true,
+          grouped = true,
+          use_fd = false,
+          git_status = true,
+          git_icons = { untracked = "G" },
+          dir_icon = "D",
+          tree_collapsed = ">",
+          display_stat = {
+            mode = {
+              width = 4,
+              display = function()
+                return "MODE"
+              end,
+            },
+            size = true,
+            date = {
+              width = 4,
+              display = function()
+                return "DATE"
+              end,
+            },
+          },
+          mappings = {},
+        },
+      },
+    }
+    telescope.load_extension "file_browser"
+    telescope.extensions.file_browser.file_browser {
+      path = root,
+      cwd = root,
+      previewer = false,
+    }
+
+    assert.is_true(vim.wait(1000, function()
+      prompt_bufnr = find_prompt()
+      if not prompt_bufnr then
+        return false
+      end
+      local picker = action_state.get_current_picker(prompt_bufnr)
+      return picker and picker.finder.tree_state and #picker.finder.results > 0
+    end, 10))
+
+    local picker = action_state.get_current_picker(prompt_bufnr)
+    local src_path = Path:new(root, "src"):absolute()
+    local src
+    for _, entry in ipairs(picker.finder.results) do
+      if entry.path == src_path then
+        src = entry
+        break
+      end
+    end
+
+    assert.is_not_nil(src)
+    local folder_display = src.display(src)
+    assert.matches("^>%s+D%s+src%s+2$", folder_display)
+
+    assert.is_true(picker.finder.tree_state:expand(src_path))
+    local projected = picker.finder.tree_state:project ""
+    local child_path = Path:new(root, "src", "child.lua"):absolute()
+    local child
+    for _, entry in ipairs(projected) do
+      if entry.path == child_path then
+        child = entry
+        break
+      end
+    end
+
+    assert.is_not_nil(child)
+    local file_display = child.display(child)
+    assert.matches("child%.lua%s+12$", file_display)
+    assert.is_nil(file_display:find "MODE")
+    assert.is_nil(file_display:find "DATE")
+    assert.is_nil(file_display:find "G")
+  end)
+
   it("updates search live while arrow keys navigate the tree", function()
     local telescope = require "telescope"
     telescope.setup {
